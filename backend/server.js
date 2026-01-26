@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { postToTwitter } from './services/twitter.service.js';
 import { postToLinkedIn } from './services/linkedin.service.js';
+import { postToBluesky } from './services/bluesky.service.js';
 
 const app = express();
 app.use(cors());
@@ -18,10 +18,10 @@ app.post('/publish', async (req, res) => {
   const results = {};
 
   for (const platform of platforms) {
-    if (platform === 'twitter') {
-      results.twitter = await postToTwitter(content);
-    } else if (platform === 'linkedin') {
+    if (platform === 'linkedin') {
       results.linkedin = await postToLinkedIn(content);
+    } else if (platform === 'bluesky') {
+      results.bluesky = await postToBluesky(content);
     }
   }
 

@@ -2,15 +2,15 @@ import { useState } from 'react';
 
 export default function App() {
   const [content, setContent] = useState('');
-  const [twitter, setTwitter] = useState(true);
   const [linkedin, setLinkedin] = useState(true);
+  const [bluesky, setBluesky] = useState(true);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
 
   const handlePost = async () => {
     const platforms = [];
-    if (twitter) platforms.push('twitter');
     if (linkedin) platforms.push('linkedin');
+    if (bluesky) platforms.push('bluesky');
 
     if (!content.trim() || platforms.length === 0) {
       alert('Enter content and select at least one platform');
@@ -46,12 +46,12 @@ export default function App() {
       />
       <div className="checkboxes">
         <label>
-          <input type="checkbox" checked={twitter} onChange={(e) => setTwitter(e.target.checked)} />
-          Twitter (X)
-        </label>
-        <label>
           <input type="checkbox" checked={linkedin} onChange={(e) => setLinkedin(e.target.checked)} />
           LinkedIn
+        </label>
+        <label>
+          <input type="checkbox" checked={bluesky} onChange={(e) => setBluesky(e.target.checked)} />
+          Bluesky
         </label>
       </div>
       <button onClick={handlePost} disabled={loading}>
@@ -60,14 +60,14 @@ export default function App() {
 
       {results && (
         <div className="results">
-          {results.twitter && (
-            <div className={`result ${results.twitter.success ? 'success' : 'error'}`}>
-              Twitter: {results.twitter.success ? `Posted! ID: ${results.twitter.id}` : `Error: ${results.twitter.error}`}
-            </div>
-          )}
           {results.linkedin && (
             <div className={`result ${results.linkedin.success ? 'success' : 'error'}`}>
               LinkedIn: {results.linkedin.success ? `Posted! ID: ${results.linkedin.id}` : `Error: ${results.linkedin.error}`}
+            </div>
+          )}
+          {results.bluesky && (
+            <div className={`result ${results.bluesky.success ? 'success' : 'error'}`}>
+              Bluesky: {results.bluesky.success ? `Posted! ID: ${results.bluesky.id}` : `Error: ${results.bluesky.error}`}
             </div>
           )}
           {results.error && (
