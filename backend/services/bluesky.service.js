@@ -1,28 +1,58 @@
-// Bluesky Posting - Simple auth with username + app password
+// Bluesky Posting with media support
+// Credentials passed as parameters (from database)
 
-const BLUESKY_HANDLE = process.env.BLUESKY_HANDLE;       // e.g., "yourname.bsky.social"
-const BLUESKY_APP_PASSWORD = process.env.BLUESKY_APP_PASSWORD; // Generate at Settings > App Passwords
+async function login(handle, appPassword) {
+  const res = await fetch('https://bsky.social/xrpc/com.atproto.server.createSession', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier: handle, password: appPassword }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`Login failed: ${err.message}`);
+  }
+  return res.json();
+}
 
-export async function postToBluesky(content) {
+async function uploadBlob(session, file) {
+  const res = await fetch('https://bsky.social/xrpc/com.atproto.repo.uploadBlob', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.accessJwt}`,
+      'Content-Type': file.mimetype,
+    },
+    body: file.buffer,
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`Blob upload failed: ${err.message}`);
+  }
+  const data = await res.json();
+  return data.blob;
+}
+
+export async function postToBluesky(handle, appPassword, content, mediaFiles = []) {
   try {
-    // Login to get session
-    const loginRes = await fetch('https://bsky.social/xrpc/com.atproto.server.createSession', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        identifier: BLUESKY_HANDLE,
-        password: BLUESKY_APP_PASSWORD,
-      }),
-    });
+    const session = await login(handle, appPassword);
+    const images = mediaFiles.filter((f) => f.mimetype.startsWith('image/'));
 
-    if (!loginRes.ok) {
-      const err = await loginRes.json();
-      return { success: false, error: `Login failed: ${err.message}` };
+    const record = {
+      text: content,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (images.length > 0) {
+      const uploadedImages = [];
+      for (const img of images.slice(0, 4)) {
+        const blob = await uploadBlob(session, img);
+        uploadedImages.push({ alt: img.originalname || '', image: blob });
+      }
+      record.embed = {
+        $type: 'app.bsky.embed.images',
+        images: uploadedImages,
+      };
     }
 
-    const session = await loginRes.json();
-
-    // Create post
     const postRes = await fetch('https://bsky.social/xrpc/com.atproto.repo.createRecord', {
       method: 'POST',
       headers: {
@@ -32,10 +62,7 @@ export async function postToBluesky(content) {
       body: JSON.stringify({
         repo: session.did,
         collection: 'app.bsky.feed.post',
-        record: {
-          text: content,
-          createdAt: new Date().toISOString(),
-        },
+        record,
       }),
     });
 
