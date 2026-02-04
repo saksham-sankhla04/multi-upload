@@ -21,6 +21,8 @@ db.exec(`
     user_id INTEGER NOT NULL,
     platform TEXT NOT NULL,
     access_token TEXT,
+    refresh_token TEXT,
+    token_expires_at TEXT,
     platform_user_id TEXT,
     handle TEXT,
     app_password TEXT,
@@ -29,5 +31,14 @@ db.exec(`
     UNIQUE(user_id, platform)
   );
 `);
+
+// Migration: Add new columns if they don't exist (for existing databases)
+try {
+  db.exec(`ALTER TABLE connected_accounts ADD COLUMN refresh_token TEXT`);
+} catch (e) { /* Column already exists */ }
+
+try {
+  db.exec(`ALTER TABLE connected_accounts ADD COLUMN token_expires_at TEXT`);
+} catch (e) { /* Column already exists */ }
 
 export default db;

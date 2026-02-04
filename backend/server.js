@@ -9,6 +9,7 @@ import settingsRoutes from './routes/settings.js';
 import { requireAuth } from './middleware/auth.js';
 import { postToLinkedIn } from './services/linkedin.service.js';
 import { postToBluesky } from './services/bluesky.service.js';
+import { getValidLinkedInToken } from './services/linkedin-token.service.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -67,7 +68,16 @@ app.post('/publish', requireAuth, upload.array('media', 4), async (req, res) => 
     }
 
     if (platform === 'linkedin') {
-      results.linkedin = await postToLinkedIn(account.access_token, content, mediaFiles);
+      try {
+        // Get valid token (automatically refreshes if expired)
+        const { accessToken, refreshed } = await getValidLinkedInToken(userId);
+        if (refreshed) {
+          console.log(`LinkedIn token refreshed for user ${userId}`);
+        }
+        results.linkedin = await postToLinkedIn(accessToken, content, mediaFiles);
+      } catch (tokenError) {
+        results.linkedin = { success: false, error: tokenError.message };
+      }
     } else if (platform === 'bluesky') {
       results.bluesky = await postToBluesky(account.handle, account.app_password, content, mediaFiles);
     }

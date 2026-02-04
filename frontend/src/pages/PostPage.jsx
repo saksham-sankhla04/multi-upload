@@ -1,16 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
+import { useToast } from '../components/Toast';
+import { ButtonSpinner } from '../components/Spinner';
 
 const API = 'http://localhost:3001';
+const MAX_CHARS = 280; // Bluesky limit
 
 export default function PostPage() {
   const [content, setContent] = useState('');
   const [linkedin, setLinkedin] = useState(false);
   const [bluesky, setBluesky] = useState(false);
   const [connectedPlatforms, setConnectedPlatforms] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState(null);
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
+  const [posting, setPosting] = useState(false);
   const [files, setFiles] = useState([]);
   const fileInputRef = useRef(null);
+  const toast = useToast();
 
   useEffect(() => {
     fetch(`${API}/settings/accounts`, { credentials: 'include' })
@@ -20,12 +24,18 @@ export default function PostPage() {
         setConnectedPlatforms(platforms);
         setLinkedin(platforms.includes('linkedin'));
         setBluesky(platforms.includes('bluesky'));
-      });
+      })
+      .catch(() => toast.error('Failed to load connected accounts'))
+      .finally(() => setLoadingAccounts(false));
   }, []);
 
   const handleFiles = (e) => {
     const selected = Array.from(e.target.files);
-    setFiles((prev) => [...prev, ...selected].slice(0, 4));
+    const newFiles = [...files, ...selected].slice(0, 4);
+    setFiles(newFiles);
+    if (selected.length > 0) {
+      toast.info(`${selected.length} file(s) attached`);
+    }
   };
 
   const removeFile = (index) => {
@@ -38,12 +48,11 @@ export default function PostPage() {
     if (bluesky) platforms.push('bluesky');
 
     if ((!content.trim() && files.length === 0) || platforms.length === 0) {
-      alert('Enter content or attach media, and select at least one platform');
+      toast.warning('Enter content or attach media, and select at least one platform');
       return;
     }
 
-    setLoading(true);
-    setResults(null);
+    setPosting(true);
 
     try {
       const formData = new FormData();
@@ -57,15 +66,58 @@ export default function PostPage() {
         body: formData,
       });
       const data = await res.json();
-      setResults(data.results);
+
+      // Show toast for each platform result
+      if (data.results) {
+        let hasSuccess = false;
+        if (data.results.linkedin) {
+          if (data.results.linkedin.success) {
+            toast.success('Posted to LinkedIn!');
+            hasSuccess = true;
+          } else {
+            toast.error(`LinkedIn: ${data.results.linkedin.error}`);
+          }
+        }
+        if (data.results.bluesky) {
+          if (data.results.bluesky.success) {
+            toast.success('Posted to Bluesky!');
+            hasSuccess = true;
+          } else {
+            toast.error(`Bluesky: ${data.results.bluesky.error}`);
+          }
+        }
+
+        // Clear form on success
+        if (hasSuccess) {
+          setContent('');
+          setFiles([]);
+        }
+      }
     } catch (err) {
-      setResults({ error: err.message });
+      toast.error(err.message || 'Failed to post');
     } finally {
-      setLoading(false);
+      setPosting(false);
     }
   };
 
   const isConnected = (platform) => connectedPlatforms.includes(platform);
+  const charCount = content.length;
+  const charCountClass = charCount > MAX_CHARS ? 'error' : charCount > MAX_CHARS - 20 ? 'warning' : '';
+
+  if (loadingAccounts) {
+    return (
+      <div>
+        <h1>Create Post</h1>
+        <div className="skeleton" style={{ height: 120, marginBottom: 16 }} />
+        <div className="skeleton" style={{ height: 44, width: 140, marginBottom: 16 }} />
+        <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+          <div className="skeleton" style={{ height: 50, flex: 1 }} />
+          <div className="skeleton" style={{ height: 50, flex: 1 }} />
+        </div>
+        <div className="skeleton" style={{ height: 48 }} />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -74,10 +126,19 @@ export default function PostPage() {
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="What's on your mind?"
+        disabled={posting}
       />
+      <div className={`char-counter ${charCountClass}`}>
+        {charCount} / {MAX_CHARS}
+      </div>
 
       <div className="media-section">
-        <button type="button" className="attach-btn" onClick={() => fileInputRef.current.click()}>
+        <button
+          type="button"
+          className="attach-btn"
+          onClick={() => fileInputRef.current.click()}
+          disabled={posting || files.length >= 4}
+        >
           + Attach Media
         </button>
         <input
@@ -88,7 +149,9 @@ export default function PostPage() {
           onChange={handleFiles}
           style={{ display: 'none' }}
         />
-        <span className="media-hint">Images (max 4)</span>
+        <span className="media-hint">
+          {files.length > 0 ? `${files.length}/4 files` : 'Images (max 4)'}
+        </span>
       </div>
 
       {files.length > 0 && (
@@ -100,59 +163,65 @@ export default function PostPage() {
               ) : (
                 <img src={URL.createObjectURL(file)} className="preview-thumb" alt="" />
               )}
-              <button className="remove-btn" onClick={() => removeFile(i)}>x</button>
+              <button
+                className="remove-btn"
+                onClick={() => removeFile(i)}
+                disabled={posting}
+                title="Remove"
+              >
+                ×
+              </button>
               <span className="file-name">{file.name}</span>
             </div>
           ))}
         </div>
       )}
 
-      <div className="checkboxes">
-        <label className={!isConnected('linkedin') ? 'disabled' : ''}>
+      <div className="platform-checkboxes">
+        <label
+          className={`platform-checkbox ${linkedin ? 'checked' : ''} ${!isConnected('linkedin') ? 'disabled' : ''}`}
+        >
           <input
             type="checkbox"
             checked={linkedin}
             onChange={(e) => setLinkedin(e.target.checked)}
-            disabled={!isConnected('linkedin')}
+            disabled={!isConnected('linkedin') || posting}
           />
-          LinkedIn {!isConnected('linkedin') && '(not connected)'}
+          <span className="platform-name">LinkedIn</span>
+          {!isConnected('linkedin') && <span className="platform-status">Not connected</span>}
         </label>
-        <label className={!isConnected('bluesky') ? 'disabled' : ''}>
+        <label
+          className={`platform-checkbox ${bluesky ? 'checked' : ''} ${!isConnected('bluesky') ? 'disabled' : ''}`}
+        >
           <input
             type="checkbox"
             checked={bluesky}
             onChange={(e) => setBluesky(e.target.checked)}
-            disabled={!isConnected('bluesky')}
+            disabled={!isConnected('bluesky') || posting}
           />
-          Bluesky {!isConnected('bluesky') && '(not connected)'}
+          <span className="platform-name">Bluesky</span>
+          {!isConnected('bluesky') && <span className="platform-status">Not connected</span>}
         </label>
       </div>
 
       {connectedPlatforms.length === 0 && (
-        <div className="result error">No accounts connected. Go to Settings to connect your socials.</div>
-      )}
-
-      <button onClick={handlePost} disabled={loading || connectedPlatforms.length === 0}>
-        {loading ? 'Posting...' : 'Post Now'}
-      </button>
-
-      {results && (
-        <div className="results">
-          {results.linkedin && (
-            <div className={`result ${results.linkedin.success ? 'success' : 'error'}`}>
-              LinkedIn: {results.linkedin.success ? `Posted! ID: ${results.linkedin.id}` : `Error: ${results.linkedin.error}`}
-            </div>
-          )}
-          {results.bluesky && (
-            <div className={`result ${results.bluesky.success ? 'success' : 'error'}`}>
-              Bluesky: {results.bluesky.success ? `Posted! ID: ${results.bluesky.id}` : `Error: ${results.bluesky.error}`}
-            </div>
-          )}
-          {results.error && (
-            <div className="result error">Error: {results.error}</div>
-          )}
+        <div className="result warning">
+          No accounts connected. Go to Settings to connect your social accounts.
         </div>
       )}
+
+      <button
+        onClick={handlePost}
+        disabled={posting || connectedPlatforms.length === 0 || (!linkedin && !bluesky)}
+      >
+        {posting ? (
+          <>
+            <ButtonSpinner /> Posting...
+          </>
+        ) : (
+          'Post Now'
+        )}
+      </button>
     </div>
   );
 }

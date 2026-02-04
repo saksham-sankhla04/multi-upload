@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import db from '../db.js';
+import { getLinkedInTokenStatus } from '../services/linkedin-token.service.js';
 
 const router = Router();
 
@@ -12,10 +13,17 @@ router.get('/accounts', requireAuth, (req, res) => {
   res.json({ accounts });
 });
 
+// Get LinkedIn token status
+router.get('/linkedin/status', requireAuth, (req, res) => {
+  const status = getLinkedInTokenStatus(req.session.userId);
+  res.json(status);
+});
+
 // Start LinkedIn OAuth flow
 router.get('/linkedin/connect', requireAuth, (req, res) => {
   const redirectUri = 'http://localhost:3001/settings/linkedin/callback';
-  const scopes = 'openid profile w_member_social';
+  // Added offline_access scope to get refresh tokens
+  const scopes = 'openid profile w_member_social offline_access';
   const url = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${process.env.LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
   res.json({ url });
 });
@@ -50,17 +58,27 @@ router.get('/linkedin/callback', async (req, res) => {
       return res.redirect(`http://localhost:5173/settings?error=${encodeURIComponent(tokenData.error_description || 'token_failed')}`);
     }
 
+    // Calculate token expiration time (expires_in is in seconds)
+    const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000)).toISOString();
+
     // Fetch user profile to get person ID
     const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
       headers: { 'Authorization': `Bearer ${tokenData.access_token}` },
     });
     const profile = await profileRes.json();
 
-    // Store in database
+    // Store in database with refresh token and expiration
     db.prepare(`
-      INSERT OR REPLACE INTO connected_accounts (user_id, platform, access_token, platform_user_id)
-      VALUES (?, 'linkedin', ?, ?)
-    `).run(req.session.userId, tokenData.access_token, profile.sub);
+      INSERT OR REPLACE INTO connected_accounts
+      (user_id, platform, access_token, refresh_token, token_expires_at, platform_user_id)
+      VALUES (?, 'linkedin', ?, ?, ?, ?)
+    `).run(
+      req.session.userId,
+      tokenData.access_token,
+      tokenData.refresh_token || null,
+      expiresAt,
+      profile.sub
+    );
 
     res.redirect('http://localhost:5173/settings?linkedin=connected');
   } catch (err) {

@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, Link } from 'react-router-dom';
+import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
+import { ToastProvider } from './components/Toast';
+import Spinner from './components/Spinner';
 import LoginPage from './pages/LoginPage';
 import PostPage from './pages/PostPage';
 import SettingsPage from './pages/SettingsPage';
 
 const API = 'http://localhost:3001';
 
-export default function App() {
+function AppContent() {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
+  const location = useLocation();
 
   useEffect(() => {
     fetch(`${API}/auth/me`, { credentials: 'include' })
@@ -22,14 +25,24 @@ export default function App() {
     setUser(null);
   };
 
-  if (checking) return <div className="loading">Loading...</div>;
+  if (checking) {
+    return (
+      <div className="loading">
+        <Spinner size={32} />
+        <span>Loading...</span>
+      </div>
+    );
+  }
+
   if (!user) return <LoginPage onLogin={setUser} />;
+
+  const isActive = (path) => location.pathname === path;
 
   return (
     <div>
       <nav className="nav-bar">
-        <Link to="/" className="nav-link">Post</Link>
-        <Link to="/settings" className="nav-link">Settings</Link>
+        <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>Post</Link>
+        <Link to="/settings" className={`nav-link ${isActive('/settings') ? 'active' : ''}`}>Settings</Link>
         <span className="nav-right">
           {user.email}
           <button className="logout-btn" onClick={handleLogout}>Logout</button>
@@ -41,5 +54,13 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
   );
 }

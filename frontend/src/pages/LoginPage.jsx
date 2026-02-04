@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ButtonSpinner } from '../components/Spinner';
 
 const API = 'http://localhost:3001';
 
@@ -35,35 +36,51 @@ export default function LoginPage({ onLogin }) {
     }
   };
 
+  const toggleMode = (e) => {
+    e.preventDefault();
+    setIsSignup(!isSignup);
+    setError('');
+  };
+
   return (
     <div className="login-page">
       <h1>Multi-Post</h1>
-      <h2>{isSignup ? 'Sign Up' : 'Log In'}</h2>
+      <h2>{isSignup ? 'Create your account' : 'Welcome back'}</h2>
       <form onSubmit={handleSubmit} className="login-form">
         <input
           type="email"
-          placeholder="Email"
+          placeholder="Email address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          disabled={loading}
+          autoComplete="email"
           required
         />
         <input
           type="password"
-          placeholder="Password (min 6 chars)"
+          placeholder="Password (min 6 characters)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           minLength={6}
+          disabled={loading}
+          autoComplete={isSignup ? 'new-password' : 'current-password'}
           required
         />
+        {error && <div className="result error">{error}</div>}
         <button type="submit" disabled={loading}>
-          {loading ? 'Please wait...' : isSignup ? 'Sign Up' : 'Log In'}
+          {loading ? (
+            <>
+              <ButtonSpinner /> {isSignup ? 'Creating account...' : 'Signing in...'}
+            </>
+          ) : (
+            isSignup ? 'Sign Up' : 'Log In'
+          )}
         </button>
       </form>
-      {error && <div className="result error">{error}</div>}
       <p className="toggle-auth">
         {isSignup ? 'Already have an account?' : "Don't have an account?"}
         {' '}
-        <a href="#" onClick={(e) => { e.preventDefault(); setIsSignup(!isSignup); setError(''); }}>
+        <a href="#" onClick={toggleMode}>
           {isSignup ? 'Log In' : 'Sign Up'}
         </a>
       </p>
