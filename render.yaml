@@ -1,0 +1,58 @@
+# Render Blueprint - Multi-Post App
+# https://render.com/docs/blueprint-spec
+
+services:
+  # Backend API
+  - type: web
+    name: multi-post-api
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        fromService:
+          name: multi-post-frontend
+          type: web
+          property: host
+          # Will be like: https://multi-post-frontend.onrender.com
+      - key: BACKEND_URL
+        fromService:
+          name: multi-post-api
+          type: web
+          property: host
+      - key: LINKEDIN_CLIENT_ID
+        sync: false  # Set manually in Render dashboard
+      - key: LINKEDIN_CLIENT_SECRET
+        sync: false  # Set manually in Render dashboard
+
+  # Frontend Static Site
+  - type: web
+    name: multi-post-frontend
+    runtime: static
+    region: oregon
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: multi-post-api
+          type: web
+          property: host

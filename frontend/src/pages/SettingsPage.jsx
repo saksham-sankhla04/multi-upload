@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useToast } from '../components/Toast';
 import { ButtonSpinner } from '../components/Spinner';
-
-const API = 'http://localhost:3001';
+import { API_URL } from '../config';
 
 export default function SettingsPage() {
   const [accounts, setAccounts] = useState([]);
@@ -20,8 +19,8 @@ export default function SettingsPage() {
   const loadAccounts = async () => {
     try {
       const [accountsRes, linkedinStatusRes] = await Promise.all([
-        fetch(`${API}/settings/accounts`, { credentials: 'include' }),
-        fetch(`${API}/settings/linkedin/status`, { credentials: 'include' }),
+        fetch(`${API_URL}/settings/accounts`, { credentials: 'include' }),
+        fetch(`${API_URL}/settings/linkedin/status`, { credentials: 'include' }),
       ]);
       const accountsData = await accountsRes.json();
       const statusData = await linkedinStatusRes.json();
@@ -50,7 +49,7 @@ export default function SettingsPage() {
   const connectLinkedIn = async () => {
     setLinkedinLoading(true);
     try {
-      const res = await fetch(`${API}/settings/linkedin/connect`, { credentials: 'include' });
+      const res = await fetch(`${API_URL}/settings/linkedin/connect`, { credentials: 'include' });
       const { url } = await res.json();
       window.location.href = url;
     } catch {
@@ -63,7 +62,7 @@ export default function SettingsPage() {
     e.preventDefault();
     setBsLoading(true);
     try {
-      const res = await fetch(`${API}/settings/bluesky/connect`, {
+      const res = await fetch(`${API_URL}/settings/bluesky/connect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -88,7 +87,7 @@ export default function SettingsPage() {
   const disconnect = async (platform) => {
     setDisconnecting(platform);
     try {
-      await fetch(`${API}/settings/accounts/${platform}`, {
+      await fetch(`${API_URL}/settings/accounts/${platform}`, {
         method: 'DELETE',
         credentials: 'include',
       });

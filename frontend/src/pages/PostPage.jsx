@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useToast } from '../components/Toast';
 import { ButtonSpinner } from '../components/Spinner';
-
-const API = 'http://localhost:3001';
+import { API_URL } from '../config';
 const MAX_CHARS = 280; // Bluesky limit
 
 export default function PostPage() {
@@ -17,7 +16,7 @@ export default function PostPage() {
   const toast = useToast();
 
   useEffect(() => {
-    fetch(`${API}/settings/accounts`, { credentials: 'include' })
+    fetch(`${API_URL}/settings/accounts`, { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
         const platforms = data.accounts.map((a) => a.platform);
@@ -60,7 +59,7 @@ export default function PostPage() {
       formData.append('platforms', JSON.stringify(platforms));
       files.forEach((file) => formData.append('media', file));
 
-      const res = await fetch(`${API}/publish`, {
+      const res = await fetch(`${API_URL}/publish`, {
         method: 'POST',
         credentials: 'include',
         body: formData,

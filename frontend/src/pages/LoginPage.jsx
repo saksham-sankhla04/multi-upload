@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { ButtonSpinner } from '../components/Spinner';
-
-const API = 'http://localhost:3001';
+import { API_URL } from '../config';
 
 export default function LoginPage({ onLogin }) {
   const [isSignup, setIsSignup] = useState(false);
@@ -17,7 +16,7 @@ export default function LoginPage({ onLogin }) {
 
     const endpoint = isSignup ? '/auth/signup' : '/auth/login';
     try {
-      const res = await fetch(`${API}${endpoint}`, {
+      const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

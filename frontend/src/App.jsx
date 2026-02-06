@@ -5,8 +5,7 @@ import Spinner from './components/Spinner';
 import LoginPage from './pages/LoginPage';
 import PostPage from './pages/PostPage';
 import SettingsPage from './pages/SettingsPage';
-
-const API = 'http://localhost:3001';
+import { API_URL } from './config';
 
 function AppContent() {
   const [user, setUser] = useState(null);
@@ -14,14 +13,14 @@ function AppContent() {
   const location = useLocation();
 
   useEffect(() => {
-    fetch(`${API}/auth/me`, { credentials: 'include' })
+    fetch(`${API_URL}/auth/me`, { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => { setUser(data.user); setChecking(false); })
       .catch(() => setChecking(false));
   }, []);
 
   const handleLogout = async () => {
-    await fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'include' });
+    await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
     setUser(null);
   };
 
