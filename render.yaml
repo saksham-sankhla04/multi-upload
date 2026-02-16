@@ -37,7 +37,6 @@ services:
   - type: web
     name: multi-post-frontend
     runtime: static
-    region: oregon
     plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
