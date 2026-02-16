@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { requireAuth } from '../middleware/auth.js';
 import db from '../db.js';
 import { getLinkedInTokenStatus } from '../services/linkedin-token.service.js';
@@ -27,17 +28,33 @@ router.get('/linkedin/status', requireAuth, (req, res) => {
 router.get('/linkedin/connect', requireAuth, (req, res) => {
   const redirectUri = `${BACKEND_URL}/settings/linkedin/callback`;
   const scopes = 'openid profile w_member_social';
-  const url = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${process.env.LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
+
+  // Generate a random state token and store it with the userId
+  const state = crypto.randomUUID();
+  db.prepare('DELETE FROM oauth_states WHERE user_id = ?').run(req.session.userId);
+  db.prepare('INSERT INTO oauth_states (state, user_id) VALUES (?, ?)').run(state, req.session.userId);
+
+  const url = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${process.env.LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}`;
   res.json({ url });
 });
 
 // LinkedIn OAuth callback (browser redirect, not API call)
 router.get('/linkedin/callback', async (req, res) => {
-  if (!req.session.userId) {
-    return res.redirect(`${FRONTEND_URL}?error=not_logged_in`);
+  const { code, state } = req.query;
+
+  // Look up userId from the state token (doesn't rely on session cookies)
+  const stateRow = state ? db.prepare('SELECT user_id FROM oauth_states WHERE state = ?').get(state) : null;
+  const userId = stateRow?.user_id || req.session?.userId;
+
+  if (!userId) {
+    return res.redirect(`${FRONTEND_URL}/settings?error=not_logged_in`);
   }
 
-  const { code } = req.query;
+  // Clean up used state token
+  if (state) {
+    db.prepare('DELETE FROM oauth_states WHERE state = ?').run(state);
+  }
+
   if (!code) {
     return res.redirect(`${FRONTEND_URL}/settings?error=no_code`);
   }
@@ -78,7 +95,7 @@ router.get('/linkedin/callback', async (req, res) => {
       (user_id, platform, access_token, refresh_token, token_expires_at, platform_user_id)
       VALUES (?, 'linkedin', ?, ?, ?, ?)
     `).run(
-      req.session.userId,
+      userId,
       tokenData.access_token,
       tokenData.refresh_token || null,
       expiresAt,
