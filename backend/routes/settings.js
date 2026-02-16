@@ -26,8 +26,7 @@ router.get('/linkedin/status', requireAuth, (req, res) => {
 // Start LinkedIn OAuth flow
 router.get('/linkedin/connect', requireAuth, (req, res) => {
   const redirectUri = `${BACKEND_URL}/settings/linkedin/callback`;
-  // Added offline_access scope to get refresh tokens
-  const scopes = 'openid profile w_member_social offline_access';
+  const scopes = 'openid profile w_member_social';
   const url = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${process.env.LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
   res.json({ url });
 });
