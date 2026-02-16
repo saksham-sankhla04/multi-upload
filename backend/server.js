@@ -2,6 +2,8 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import session from "express-session";
+import betterSqlite3SessionStore from "better-sqlite3-session-store";
+const SqliteStore = betterSqlite3SessionStore(session);
 import multer from "multer";
 import db from "./db.js";
 import authRoutes from "./routes/auth.js";
@@ -46,9 +48,13 @@ app.use(
 
 app.use(express.json());
 
-// Session configuration
+// Session configuration with persistent SQLite store
 app.use(
   session({
+    store: new SqliteStore({
+      client: db,
+      expired: { clear: true, intervalMs: 900000 },
+    }),
     secret: process.env.SESSION_SECRET || "dev-secret-change-in-production",
     resave: false,
     saveUninitialized: false,
