@@ -7,10 +7,8 @@ services:
     name: multi-post-api
     runtime: node
     region: oregon
-    plan: free
-    rootDir: backend
-    buildCommand: npm install
-    startCommand: node server.js
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && node server.js
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
@@ -18,29 +16,20 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        fromService:
-          name: multi-post-frontend
-          type: web
-          property: host
-          # Will be like: https://multi-post-frontend.onrender.com
+        value: https://multi-post-frontend.onrender.com
       - key: BACKEND_URL
-        fromService:
-          name: multi-post-api
-          type: web
-          property: host
+        value: https://multi-post-api.onrender.com
       - key: LINKEDIN_CLIENT_ID
-        sync: false  # Set manually in Render dashboard
+        sync: false
       - key: LINKEDIN_CLIENT_SECRET
-        sync: false  # Set manually in Render dashboard
+        sync: false
 
   # Frontend Static Site
   - type: web
     name: multi-post-frontend
     runtime: static
-    plan: free
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
     headers:
       - path: /*
         name: Cache-Control
@@ -51,7 +40,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        fromService:
-          name: multi-post-api
-          type: web
-          property: host
+        value: https://multi-post-api.onrender.com
